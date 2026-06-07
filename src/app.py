@@ -34,18 +34,58 @@ df["Employability_Band"] = pd.cut(
 )
 
 # =========================
-# TITLE
+# HEADER SECTION
 # =========================
 
-st.title("TaPTaP Student Employability Analytics Dashboard")
+st.title("🎓 TaPTaP Student Employability Analytics Dashboard")
 
-st.write(
-    "This dashboard shows how TaPTaP helps colleges improve student learning, assignments, MET performance, projects, and placement readiness."
-)
+st.markdown("""
+### Learning • Assignments • MET Tests • Projects • Placement Readiness
+
+This dashboard helps colleges understand how TaPTaP supports student learning, performance tracking, project practice, and placement preparation.
+""")
+
+st.markdown("---")
+
+# =========================
+# ABOUT PORTAL
+# =========================
+
+st.header("About TaPTaP Portal")
+
+st.write("""
+TaPTaP is a student learning and employability platform. It helps students learn technical skills, complete assignments, take Monthly Employability Tests, practice sample projects, and prepare for placements.
+
+Colleges can use this dashboard to monitor student performance, identify weak students, track department progress, and improve placement outcomes.
+""")
+
+# =========================
+# BENEFITS FOR COLLEGES
+# =========================
+
+st.header("Benefits for Colleges")
+
+b1, b2, b3 = st.columns(3)
+
+with b1:
+    st.subheader("📊 Student Tracking")
+    st.write("Track attendance, assignment scores, MET scores, projects, and placement readiness.")
+
+with b2:
+    st.subheader("🎯 Placement Improvement")
+    st.write("Identify placement-ready students and students who need extra training.")
+
+with b3:
+    st.subheader("📈 Department Analytics")
+    st.write("Compare department performance and make better academic decisions.")
+
+st.markdown("---")
 
 # =========================
 # TOP KPI CARDS
 # =========================
+
+st.header("College Overview")
 
 total_students = len(df)
 placed_students = len(df[df["Placement_Status"] == "Placed"])
@@ -77,61 +117,59 @@ c8.metric("Students At Risk", students_at_risk)
 st.markdown("---")
 
 # =========================
-# PORTAL OVERVIEW
+# SIDEBAR FILTERS
 # =========================
 
-st.header("What TaPTaP Provides")
+st.sidebar.header("Filters")
 
-st.write("""
-TaPTaP is a student learning and employability platform. It helps colleges provide learning content, assignments, MET tests, sample projects, project practice, placement preparation, and student performance tracking.
-""")
+departments = ["All"] + sorted(df["Department"].unique().tolist())
 
-p1, p2, p3 = st.columns(3)
-
-with p1:
-    st.subheader("For Students")
-    st.write("""
-    - Learn technical skills  
-    - Practice assignments  
-    - Take MET tests  
-    - Build sample projects  
-    - Prepare for placements  
-    """)
-
-with p2:
-    st.subheader("For Faculty")
-    st.write("""
-    - Track student progress  
-    - Monitor assignments  
-    - Check MET performance  
-    - Identify weak students  
-    - Support placement training  
-    """)
-
-with p3:
-    st.subheader("For Colleges")
-    st.write("""
-    - Improve student skills  
-    - Increase placement readiness  
-    - Department-wise tracking  
-    - Performance reports  
-    - Better college outcomes  
-    """)
-
-st.markdown("---")
-
-# =========================
-# STUDENT SELECTION
-# =========================
-
-st.header("Student Performance Check")
-
-selected_student = st.selectbox(
-    "Select Student ID",
-    df["Student_ID"].tolist()
+selected_department = st.sidebar.selectbox(
+    "Select Department",
+    departments
 )
 
+if selected_department == "All":
+    filtered_df = df.copy()
+else:
+    filtered_df = df[df["Department"] == selected_department]
+
+st.sidebar.write("Students Found:", len(filtered_df))
+
+st.sidebar.header("Student Search")
+
+search_id = st.sidebar.text_input("Search Student ID")
+
+if search_id:
+    search_result = filtered_df[
+        filtered_df["Student_ID"].astype(str).str.contains(
+            search_id,
+            case=False,
+            na=False
+        )
+    ]
+
+    if len(search_result) > 0:
+        selected_student = st.sidebar.selectbox(
+            "Select Matching Student",
+            search_result["Student_ID"].tolist()
+        )
+    else:
+        st.sidebar.warning("No student found")
+        selected_student = filtered_df["Student_ID"].iloc[0]
+else:
+    selected_student = st.sidebar.selectbox(
+        "Select Student",
+        filtered_df["Student_ID"].tolist()
+    )
+
 student = df[df["Student_ID"] == selected_student].iloc[0]
+
+# =========================
+# STUDENT PROFILE
+# =========================
+
+st.header("Student Performance Profile")
 
 s1, s2, s3, s4 = st.columns(4)
 
@@ -148,7 +186,7 @@ s7.metric("Performance Score", round(student["Performance_Score"], 2))
 s8.metric("Employability Band", student["Employability_Band"])
 
 # =========================
-# AUTOMATIC PREDICTION
+# PLACEMENT PREDICTION
 # =========================
 
 input_data = pd.DataFrame(
@@ -169,20 +207,24 @@ input_data = pd.DataFrame(
 prediction = model.predict(input_data)[0]
 probability = model.predict_proba(input_data)[0][1] * 100
 
-st.subheader("Placement Prediction")
+st.header("Placement Readiness Prediction")
+
+p1, p2 = st.columns(2)
 
 if prediction == 1:
-    st.success("Prediction: Placed")
+    p1.success("Prediction: Placed")
 else:
-    st.error("Prediction: Not Placed")
+    p1.error("Prediction: Not Placed")
 
-st.info(f"Placement Chance: {probability:.2f}%")
+p2.metric("Placement Chance", f"{probability:.2f}%")
+
+st.progress(int(probability))
 
 # =========================
 # REMARKS
 # =========================
 
-st.subheader("Remarks and Improvement Suggestions")
+st.header("Remarks and Improvement Suggestions")
 
 remarks = []
 
@@ -214,6 +256,36 @@ if student["Project_Completed"] == "No":
 for r in remarks:
     st.write("✅", r)
 
+# =========================
+# DOWNLOAD STUDENT REPORT
+# =========================
+
+report_text = f"""
+TaPTaP Student Performance Report
+
+Student ID: {student['Student_ID']}
+Department: {student['Department']}
+Attendance: {student['Attendance']}
+Assignment Score: {student['Assignment_Score']}
+MET Score: {student['MET_Score']}
+Project Completed: {student['Project_Completed']}
+Performance Score: {round(student['Performance_Score'], 2)}
+Employability Band: {student['Employability_Band']}
+Placement Chance: {probability:.2f}%
+
+Prediction: {'Placed' if prediction == 1 else 'Not Placed'}
+
+Remarks:
+{chr(10).join(remarks)}
+"""
+
+st.download_button(
+    label="Download Student Report",
+    data=report_text,
+    file_name=f"{student['Student_ID']}_report.txt",
+    mime="text/plain"
+)
+
 st.markdown("---")
 
 # =========================
@@ -240,120 +312,132 @@ def pie_chart(title, data):
     st.pyplot(fig)
 
 # =========================
-# 15 DASHBOARD GRAPHS
+# DASHBOARD GRAPHS
 # =========================
 
-st.header("TaPTaP Analytics Dashboard")
+st.header("TaPTaP College Analytics Dashboard")
 
 bar_chart(
     "1. Department Wise Students",
-    df["Department"].value_counts(),
+    filtered_df["Department"].value_counts(),
     "Department",
     "Students"
 )
 
 pie_chart(
     "2. Placement Status Percentage",
-    df["Placement_Status"].value_counts()
+    filtered_df["Placement_Status"].value_counts()
 )
 
 bar_chart(
     "3. Project Completion Status",
-    df["Project_Completed"].value_counts(),
+    filtered_df["Project_Completed"].value_counts(),
     "Project Completed",
     "Students"
 )
 
 bar_chart(
     "4. Average Attendance by Department",
-    df.groupby("Department")["Attendance"].mean(),
+    filtered_df.groupby("Department")["Attendance"].mean(),
     "Department",
     "Average Attendance"
 )
 
 bar_chart(
     "5. Average Assignment Score by Department",
-    df.groupby("Department")["Assignment_Score"].mean(),
+    filtered_df.groupby("Department")["Assignment_Score"].mean(),
     "Department",
     "Average Assignment Score"
 )
 
 bar_chart(
     "6. Average MET Score by Department",
-    df.groupby("Department")["MET_Score"].mean(),
+    filtered_df.groupby("Department")["MET_Score"].mean(),
     "Department",
     "Average MET Score"
 )
 
 bar_chart(
     "7. Department Wise Placed Students",
-    df[df["Placement_Status"] == "Placed"]["Department"].value_counts(),
+    filtered_df[filtered_df["Placement_Status"] == "Placed"]["Department"].value_counts(),
     "Department",
     "Placed Students"
 )
 
 bar_chart(
     "8. Department Wise Not Placed Students",
-    df[df["Placement_Status"] == "Not Placed"]["Department"].value_counts(),
+    filtered_df[filtered_df["Placement_Status"] == "Not Placed"]["Department"].value_counts(),
     "Department",
     "Not Placed Students"
 )
 
 bar_chart(
     "9. Employability Band Distribution",
-    df["Employability_Band"].value_counts().sort_index(),
+    filtered_df["Employability_Band"].value_counts().sort_index(),
     "Employability Band",
     "Students"
 )
 
 bar_chart(
     "10. Top 10 Students by Performance",
-    df.sort_values("Performance_Score", ascending=False)
-      .head(10)
-      .set_index("Student_ID")["Performance_Score"],
+    filtered_df.sort_values("Performance_Score", ascending=False)
+    .head(10)
+    .set_index("Student_ID")["Performance_Score"],
     "Student ID",
     "Performance Score"
 )
 
 bar_chart(
     "11. Least 10 Students by Performance",
-    df.sort_values("Performance_Score")
-      .head(10)
-      .set_index("Student_ID")["Performance_Score"],
+    filtered_df.sort_values("Performance_Score")
+    .head(10)
+    .set_index("Student_ID")["Performance_Score"],
     "Student ID",
     "Performance Score"
 )
 
 bar_chart(
     "12. Top 10 MET Score Students",
-    df.nlargest(10, "MET_Score")
-      .set_index("Student_ID")["MET_Score"],
+    filtered_df.nlargest(10, "MET_Score")
+    .set_index("Student_ID")["MET_Score"],
     "Student ID",
     "MET Score"
 )
 
 bar_chart(
     "13. Least 10 MET Score Students",
-    df.nsmallest(10, "MET_Score")
-      .set_index("Student_ID")["MET_Score"],
+    filtered_df.nsmallest(10, "MET_Score")
+    .set_index("Student_ID")["MET_Score"],
     "Student ID",
     "MET Score"
 )
 
 bar_chart(
     "14. Top Departments by Performance",
-    df.groupby("Department")["Performance_Score"]
-      .mean()
-      .sort_values(ascending=False),
+    filtered_df.groupby("Department")["Performance_Score"]
+    .mean()
+    .sort_values(ascending=False),
     "Department",
     "Average Performance Score"
 )
 
 bar_chart(
     "15. Students Needing Improvement by Department",
-    df[df["Performance_Score"] < 60]["Department"].value_counts(),
+    filtered_df[filtered_df["Performance_Score"] < 60]["Department"].value_counts(),
     "Department",
     "Students Needing Improvement"
 )
 
-st.success("Dashboard Loaded Successfully")
+# =========================
+# FOOTER
+# =========================
+
+st.markdown("---")
+
+st.markdown("""
+### Developed for Student Employability Analytics
+
+This project demonstrates how colleges can use student learning data, assignment scores, MET performance, project completion, and placement readiness to improve student outcomes.
+""")
+
+st.success("Advanced TaPTaP Dashboard Loaded Successfully")
